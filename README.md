@@ -5,9 +5,11 @@ A retro Space Invaders-style game built for Safari on iPad.
 ## Features
 - Touch controls for iPad
 - Keyboard controls for desktop testing
-- Score, best score, lives, levels
-- Retro arcade styling with shields and particle bursts
-- Simple synthesized sound effects
+- Proper start screen and pause/resume support
+- Score, best score, lives, levels, and wave label
+- Classic, zigzag, dive, and boss waves
+- Shields, particle bursts, and richer arcade visuals
+- Synth sound effects plus lightweight background music
 - Add-to-Home-Screen friendly PWA setup
 - GitHub Pages friendly static site
 
@@ -24,11 +26,13 @@ Then open:
 - Drag on the game area to move
 - Or hold the left/right buttons
 - Tap `FIRE` to shoot
-- Tap `Start Game` to begin
+- Tap the pause button to pause/resume
+- Tap the speaker button to mute/unmute
 
 ### Keyboard
 - `←` / `→` to move
 - `Space` to fire
+- `P` to pause/resume
 - `Enter` to start/restart
 
 ## GitHub Pages

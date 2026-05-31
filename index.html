@@ -15,30 +15,62 @@
 </head>
 <body>
   <main class="app">
-    <header class="hud">
-      <div>Score: <span id="score">0</span></div>
-      <div>Lives: <span id="lives">3</span></div>
-      <div>Level: <span id="level">1</span></div>
-      <div>Best: <span id="bestScore">0</span></div>
+    <header class="topbar">
+      <div class="brand-pill">
+        <span class="brand-dot"></span>
+        <span>Space Invaders DX</span>
+      </div>
+      <div class="topbar-actions">
+        <button id="pauseButton" class="icon-button" aria-label="Pause game">❚❚</button>
+        <button id="muteButton" class="icon-button" aria-label="Toggle sound">🔊</button>
+      </div>
     </header>
+
+    <section class="hud-card">
+      <div class="hud-item">
+        <span class="hud-label">Score</span>
+        <span class="hud-value" id="score">0</span>
+      </div>
+      <div class="hud-item">
+        <span class="hud-label">Best</span>
+        <span class="hud-value" id="bestScore">0</span>
+      </div>
+      <div class="hud-item">
+        <span class="hud-label">Lives</span>
+        <span class="hud-value" id="lives">3</span>
+      </div>
+      <div class="hud-item">
+        <span class="hud-label">Level</span>
+        <span class="hud-value" id="level">1</span>
+      </div>
+      <div class="hud-item">
+        <span class="hud-label">Wave</span>
+        <span class="hud-value" id="waveType">Classic</span>
+      </div>
+    </section>
 
     <section class="game-shell">
       <canvas id="game" width="900" height="1200" aria-label="Space Invaders game"></canvas>
       <div class="scanlines"></div>
-      <div class="overlay" id="overlay">
-        <h1>iPad Space Invaders</h1>
-        <p>Tap Start. Drag left/right to move. Tap Fire to shoot. Add to Home Screen for full-screen play.</p>
-        <div class="overlay-actions">
-          <button id="startButton">Start Game</button>
-          <button id="soundButton" class="secondary-button">Sound: On</button>
-        </div>
+      <div class="boss-bar hidden" id="bossBarWrap">
+        <div class="boss-bar-label">Boss</div>
+        <div class="boss-bar-track"><div class="boss-bar-fill" id="bossBarFill"></div></div>
       </div>
+      <div class="overlay" id="overlay"></div>
     </section>
 
     <section class="controls" aria-label="Touch controls">
       <button class="control control-wide" id="leftButton">◀</button>
       <button class="control control-fire" id="fireButton">FIRE</button>
       <button class="control control-wide" id="rightButton">▶</button>
+    </section>
+
+    <section class="gesture-hint">
+      <span>Drag to steer</span>
+      <span>•</span>
+      <span>Tap canvas to shoot</span>
+      <span>•</span>
+      <span>Add to Home Screen</span>
     </section>
   </main>
 
