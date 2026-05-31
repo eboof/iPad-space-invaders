@@ -9,7 +9,7 @@ A retro Space Invaders-style game built for Safari on iPad.
 - Retro arcade styling with shields and particle bursts
 - Simple synthesized sound effects
 - Add-to-Home-Screen friendly PWA setup
-- GitHub Pages deploy workflow
+- GitHub Pages friendly static site
 
 ## Local run
 ```bash
@@ -32,14 +32,13 @@ Then open:
 - `Enter` to start/restart
 
 ## GitHub Pages
-This repo includes `.github/workflows/pages.yml`.
-
 After pushing to `main`:
 1. Open the repo on GitHub
 2. Go to **Settings → Pages**
-3. Under **Build and deployment**, ensure **Source** is set to **GitHub Actions**
-4. Wait for the Pages workflow to finish
-5. Your site should appear at something like:
+3. Under **Build and deployment**, set **Source** to **Deploy from a branch**
+4. Set branch to **main** and folder to **/ (root)**
+5. Save and wait a minute or two
+6. Your site should appear at:
    - `https://eboof.github.io/iPad-space-invaders/`
 
 ## Add to Home Screen on iPad
@@ -54,4 +53,3 @@ After pushing to `main`:
 - `game.js`
 - `manifest.webmanifest`
 - `sw.js`
-- `.github/workflows/pages.yml`
