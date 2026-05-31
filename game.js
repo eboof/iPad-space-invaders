@@ -4,20 +4,24 @@ const ctx = canvas.getContext('2d');
 const scoreEl = document.getElementById('score');
 const livesEl = document.getElementById('lives');
 const levelEl = document.getElementById('level');
+const bestScoreEl = document.getElementById('bestScore');
 const overlay = document.getElementById('overlay');
-const startButton = document.getElementById('startButton');
 const leftButton = document.getElementById('leftButton');
 const rightButton = document.getElementById('rightButton');
 const fireButton = document.getElementById('fireButton');
 
 const WIDTH = canvas.width;
 const HEIGHT = canvas.height;
+const STORAGE_KEY = 'ipad-space-invaders-best-score';
+const SOUND_KEY = 'ipad-space-invaders-sound-enabled';
 
 const state = {
   running: false,
   score: 0,
   lives: 3,
   level: 1,
+  bestScore: Number(localStorage.getItem(STORAGE_KEY) || 0),
+  soundEnabled: localStorage.getItem(SOUND_KEY) !== 'off',
   moveLeft: false,
   moveRight: false,
   player: null,
@@ -25,20 +29,22 @@ const state = {
   enemyBullets: [],
   enemies: [],
   stars: [],
+  particles: [],
+  shields: [],
   enemyDirection: 1,
   enemySpeed: 0.45,
   lastTime: 0,
   lastShotAt: 0,
   lastEnemyShotAt: 0,
-  message: 'Tap Start. Defend the sector.'
+  audioContext: null
 };
 
 function resetStars() {
-  state.stars = Array.from({ length: 70 }, () => ({
+  state.stars = Array.from({ length: 80 }, () => ({
     x: Math.random() * WIDTH,
     y: Math.random() * HEIGHT,
     r: Math.random() * 2 + 1,
-    s: Math.random() * 0.7 + 0.2
+    s: Math.random() * 0.9 + 0.25
   }));
 }
 
@@ -71,7 +77,16 @@ function createEnemies(level) {
   return enemies;
 }
 
+function createShields() {
+  return [
+    { x: 120, y: 920, width: 130, height: 40, hp: 7 },
+    { x: 385, y: 920, width: 130, height: 40, hp: 7 },
+    { x: 650, y: 920, width: 130, height: 40, hp: 7 }
+  ];
+}
+
 function resetGame(fullReset = true) {
+  ensureAudio();
   state.running = true;
   if (fullReset) {
     state.score = 0;
@@ -81,12 +96,13 @@ function resetGame(fullReset = true) {
   state.player = createPlayer();
   state.bullets = [];
   state.enemyBullets = [];
+  state.particles = [];
+  state.shields = createShields();
   state.enemies = createEnemies(state.level);
   state.enemyDirection = 1;
   state.enemySpeed = 0.45 + state.level * 0.12;
   state.lastShotAt = 0;
   state.lastEnemyShotAt = 0;
-  state.message = '';
   overlay.classList.add('hidden');
   syncHud();
 }
@@ -95,16 +111,85 @@ function syncHud() {
   scoreEl.textContent = state.score;
   livesEl.textContent = state.lives;
   levelEl.textContent = state.level;
+  bestScoreEl.textContent = state.bestScore;
 }
 
-function showOverlay(title, message, buttonText = 'Play Again') {
+function updateBestScore() {
+  if (state.score > state.bestScore) {
+    state.bestScore = state.score;
+    localStorage.setItem(STORAGE_KEY, String(state.bestScore));
+    syncHud();
+  }
+}
+
+function ensureAudio() {
+  if (!state.soundEnabled || state.audioContext) return;
+  const AudioCtx = window.AudioContext || window.webkitAudioContext;
+  if (!AudioCtx) return;
+  state.audioContext = new AudioCtx();
+}
+
+function playTone({ frequency = 440, type = 'square', duration = 0.08, gain = 0.03, slideTo = null }) {
+  if (!state.soundEnabled) return;
+  ensureAudio();
+  if (!state.audioContext) return;
+
+  if (state.audioContext.state === 'suspended') {
+    state.audioContext.resume().catch(() => {});
+  }
+
+  const now = state.audioContext.currentTime;
+  const osc = state.audioContext.createOscillator();
+  const amp = state.audioContext.createGain();
+
+  osc.type = type;
+  osc.frequency.setValueAtTime(frequency, now);
+  if (slideTo) {
+    osc.frequency.exponentialRampToValueAtTime(Math.max(slideTo, 40), now + duration);
+  }
+
+  amp.gain.setValueAtTime(gain, now);
+  amp.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+  osc.connect(amp);
+  amp.connect(state.audioContext.destination);
+  osc.start(now);
+  osc.stop(now + duration);
+}
+
+function toggleSound() {
+  state.soundEnabled = !state.soundEnabled;
+  localStorage.setItem(SOUND_KEY, state.soundEnabled ? 'on' : 'off');
+  renderOverlay(getOverlayTitle(), getOverlayMessage(), state.running ? 'Resume' : 'Start Game');
+}
+
+function getOverlayTitle() {
+  return state.running ? 'Paused' : 'iPad Space Invaders';
+}
+
+function getOverlayMessage() {
+  return state.running
+    ? 'Tap resume when you are ready.'
+    : 'Tap Start. Drag left/right to move. Tap Fire to shoot. Add to Home Screen for full-screen play.';
+}
+
+function renderOverlay(title, message, buttonText) {
   overlay.innerHTML = `
     <h1>${title}</h1>
     <p>${message}</p>
-    <button id="startButton">${buttonText}</button>
+    <div class="overlay-actions">
+      <button id="startButton">${buttonText}</button>
+      <button id="soundButton" class="secondary-button">Sound: ${state.soundEnabled ? 'On' : 'Off'}</button>
+    </div>
   `;
+
+  document.getElementById('startButton').addEventListener('click', () => resetGame(!state.running));
+  document.getElementById('soundButton').addEventListener('click', toggleSound);
+}
+
+function showOverlay(title, message, buttonText = 'Play Again') {
+  renderOverlay(title, message, buttonText);
   overlay.classList.remove('hidden');
-  document.getElementById('startButton').addEventListener('click', () => resetGame(true));
 }
 
 function nextLevel() {
@@ -112,10 +197,13 @@ function nextLevel() {
   state.player = createPlayer();
   state.bullets = [];
   state.enemyBullets = [];
+  state.particles = [];
+  state.shields = createShields();
   state.enemies = createEnemies(state.level);
   state.enemyDirection = 1;
   state.enemySpeed = 0.45 + state.level * 0.12;
   syncHud();
+  playTone({ frequency: 520, type: 'triangle', duration: 0.12, gain: 0.04, slideTo: 820 });
 }
 
 function firePlayerBullet(now) {
@@ -126,8 +214,10 @@ function firePlayerBullet(now) {
     y: state.player.y - 12,
     width: 6,
     height: 20,
-    speed: 11
+    speed: 11,
+    kind: 'player'
   });
+  playTone({ frequency: 760, duration: 0.07, gain: 0.025, slideTo: 420 });
 }
 
 function fireEnemyBullet(now) {
@@ -141,8 +231,36 @@ function fireEnemyBullet(now) {
     y: shooter.y + shooter.height,
     width: 8,
     height: 22,
-    speed: 6 + state.level * 0.35
+    speed: 6 + state.level * 0.35,
+    kind: 'enemy'
   });
+}
+
+function spawnBurst(x, y, color) {
+  for (let i = 0; i < 14; i += 1) {
+    state.particles.push({
+      x,
+      y,
+      dx: (Math.random() - 0.5) * 7,
+      dy: (Math.random() - 0.5) * 7,
+      life: 28 + Math.random() * 12,
+      color,
+      size: Math.random() * 5 + 2
+    });
+  }
+}
+
+function hitShield(bullet) {
+  for (const shield of state.shields) {
+    if (shield.hp > 0 && overlaps(bullet, shield)) {
+      shield.hp -= bullet.kind === 'enemy' ? 2 : 1;
+      bullet.y = bullet.kind === 'player' ? -100 : HEIGHT + 100;
+      spawnBurst(bullet.x, bullet.y, '#2ce8f5');
+      playTone({ frequency: 180, type: 'sawtooth', duration: 0.05, gain: 0.018, slideTo: 120 });
+      return true;
+    }
+  }
+  return false;
 }
 
 function update(delta, now) {
@@ -159,6 +277,14 @@ function update(delta, now) {
       star.x = Math.random() * WIDTH;
     }
   }
+
+  for (const particle of state.particles) {
+    particle.x += particle.dx;
+    particle.y += particle.dy;
+    particle.life -= 1;
+    particle.dy += 0.02;
+  }
+  state.particles = state.particles.filter((particle) => particle.life > 0);
 
   for (const bullet of state.bullets) bullet.y -= bullet.speed;
   for (const bullet of state.enemyBullets) bullet.y += bullet.speed;
@@ -184,22 +310,29 @@ function update(delta, now) {
   }
 
   for (const bullet of state.bullets) {
+    if (hitShield(bullet)) continue;
     for (const enemy of liveEnemies) {
       if (enemy.alive && overlaps(bullet, enemy)) {
         enemy.alive = false;
         bullet.y = -100;
         state.score += enemy.points;
+        updateBestScore();
         syncHud();
+        spawnBurst(enemy.x + enemy.width / 2, enemy.y + enemy.height / 2, '#ff8cf7');
+        playTone({ frequency: 260, duration: 0.09, gain: 0.03, slideTo: 120 });
         break;
       }
     }
   }
 
   for (const bullet of state.enemyBullets) {
+    if (hitShield(bullet)) continue;
     if (overlaps(bullet, state.player)) {
       bullet.y = HEIGHT + 100;
       state.lives -= 1;
       syncHud();
+      spawnBurst(state.player.x + state.player.width / 2, state.player.y, '#ff6b6b');
+      playTone({ frequency: 140, type: 'sawtooth', duration: 0.18, gain: 0.035, slideTo: 70 });
       if (state.lives <= 0) {
         endGame('Game Over', `Final score: ${state.score}`);
         return;
@@ -218,6 +351,7 @@ function update(delta, now) {
 
 function endGame(title, message) {
   state.running = false;
+  updateBestScore();
   showOverlay(title, message, 'Restart');
 }
 
@@ -233,7 +367,7 @@ function draw() {
 
   for (const star of state.stars) {
     ctx.fillStyle = '#b6efff';
-    ctx.globalAlpha = 0.4 + star.r * 0.2;
+    ctx.globalAlpha = 0.35 + star.r * 0.2;
     ctx.fillRect(star.x, star.y, star.r, star.r);
   }
   ctx.globalAlpha = 1;
@@ -247,9 +381,11 @@ function draw() {
     ctx.stroke();
   }
 
+  drawShields();
   drawPlayer();
   drawEnemies();
   drawBullets();
+  drawParticles();
 }
 
 function drawPlayer() {
@@ -274,11 +410,31 @@ function drawEnemies() {
   }
 }
 
+function drawShields() {
+  for (const shield of state.shields) {
+    if (shield.hp <= 0) continue;
+    const alpha = Math.max(0.28, shield.hp / 7);
+    ctx.fillStyle = `rgba(44, 232, 245, ${alpha})`;
+    ctx.fillRect(shield.x, shield.y, shield.width, shield.height);
+    ctx.clearRect(shield.x + 40, shield.y + 22, 18, 18);
+    ctx.clearRect(shield.x + shield.width - 58, shield.y + 22, 18, 18);
+  }
+}
+
 function drawBullets() {
   ctx.fillStyle = '#2ce8f5';
   for (const bullet of state.bullets) ctx.fillRect(bullet.x, bullet.y, bullet.width, bullet.height);
   ctx.fillStyle = '#ff6b6b';
   for (const bullet of state.enemyBullets) ctx.fillRect(bullet.x, bullet.y, bullet.width, bullet.height);
+}
+
+function drawParticles() {
+  for (const particle of state.particles) {
+    ctx.globalAlpha = Math.max(0, particle.life / 40);
+    ctx.fillStyle = particle.color;
+    ctx.fillRect(particle.x, particle.y, particle.size, particle.size);
+  }
+  ctx.globalAlpha = 1;
 }
 
 function loop(timestamp) {
@@ -292,6 +448,7 @@ function loop(timestamp) {
 function bindHold(button, onStart, onEnd = onStart) {
   button.addEventListener('pointerdown', (event) => {
     event.preventDefault();
+    ensureAudio();
     onStart(true);
   });
   const clear = () => onEnd(false);
@@ -299,8 +456,6 @@ function bindHold(button, onStart, onEnd = onStart) {
   button.addEventListener('pointercancel', clear);
   button.addEventListener('pointerleave', clear);
 }
-
-startButton.addEventListener('click', () => resetGame(true));
 
 bindHold(leftButton, (value) => {
   state.moveLeft = value;
@@ -318,10 +473,12 @@ bindHold(rightButton, (value) => {
 
 fireButton.addEventListener('pointerdown', (event) => {
   event.preventDefault();
+  ensureAudio();
   firePlayerBullet(performance.now());
 });
 
 window.addEventListener('keydown', (event) => {
+  ensureAudio();
   if (event.key === 'ArrowLeft') state.moveLeft = true;
   if (event.key === 'ArrowRight') state.moveRight = true;
   if (event.key === ' ' || event.code === 'Space') {
@@ -338,6 +495,7 @@ window.addEventListener('keyup', (event) => {
 
 let dragActive = false;
 canvas.addEventListener('pointerdown', (event) => {
+  ensureAudio();
   dragActive = true;
   movePlayerToPointer(event);
 });
@@ -356,8 +514,15 @@ function movePlayerToPointer(event) {
   state.player.x = Math.max(20, Math.min(WIDTH - state.player.width - 20, x - state.player.width / 2));
 }
 
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  });
+}
+
 resetStars();
 state.player = createPlayer();
 syncHud();
+renderOverlay(getOverlayTitle(), getOverlayMessage(), 'Start Game');
 draw();
 requestAnimationFrame(loop);

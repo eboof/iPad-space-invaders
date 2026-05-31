@@ -1,0 +1,17 @@
+{
+  "name": "iPad Space Invaders",
+  "short_name": "Invaders",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#050816",
+  "theme_color": "#050816",
+  "description": "Retro Space Invaders-style game for iPad.",
+  "icons": [
+    {
+      "src": "assets/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
